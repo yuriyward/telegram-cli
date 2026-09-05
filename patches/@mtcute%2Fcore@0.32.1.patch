@@ -1,0 +1,16 @@
+diff --git a/network/session-connection.js b/network/session-connection.js
+index 0470100f48202c4963923f55d93cf3cffec0304d..4b97aa5655a1d69e9ee762974302f130e407eca0 100644
+--- a/network/session-connection.js
++++ b/network/session-connection.js
+@@ -1089,7 +1089,10 @@ class SessionConnection extends PersistentConnection {
+       pending.resetAbortSignal = () => abortSignal.removeEventListener("abort", cancel);
+     }
+     this._enqueueRpc(pending, true);
+-    return pending.promise.promise;
++    return pending.promise.promise.finally(() => {
++      timers.clearTimeout(pending.timeout);
++      pending.resetAbortSignal?.();
++    });
+   }
+   notifyNetworkChanged(online) {
+     this._online = online;
