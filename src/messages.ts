@@ -10,6 +10,8 @@ export interface ReadOptions extends DateRange {
   from?: number | string | undefined;
   query?: string | undefined;
   before?: number | undefined;
+  after?: number | undefined;
+  incomingOnly?: boolean | undefined;
   limit: number;
   replies: boolean;
 }
@@ -74,6 +76,13 @@ const readSource = (
   client: Pick<TelegramClient, "iterHistory" | "iterSearchMessages">,
   options: ReadOptions
 ) => {
+  if (
+    options.after !== undefined &&
+    options.before !== undefined &&
+    options.before <= options.after + 1
+  ) {
+    return [];
+  }
   const filtered = options.query !== undefined || options.from !== undefined;
   if (filtered) {
     const params: NonNullable<
@@ -111,11 +120,15 @@ export const readMessages = async (
   const messages: Message[] = [];
   let complete = true;
   for await (const message of source) {
-    if (message.date < options.since) {
+    if (
+      message.date < options.since ||
+      (options.after !== undefined && message.id <= options.after)
+    ) {
       break;
     }
     if (
       message.date >= options.until ||
+      (options.incomingOnly === true && message.raw.out === true) ||
       (options.before !== undefined && message.id >= options.before)
     ) {
       continue;
@@ -145,7 +158,8 @@ export const messageContext = async (
   chat: number | string,
   id: number,
   before: number,
-  after: number
+  after: number,
+  replies = true
 ) => {
   const [targets, older, newer] = await Promise.all([
     client.getMessages(chat, [id]),
@@ -178,7 +192,7 @@ export const messageContext = async (
   return {
     messages: messages.map(messageRecord),
     order: "oldest-first",
-    replies: await replyContext(client, messages),
+    replies: replies ? await replyContext(client, messages) : undefined,
     targetId: id,
   };
 };

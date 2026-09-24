@@ -55,6 +55,7 @@ export const withClient = async <T>(
       logLevel: LogManager.OFF,
       storage,
     });
+    await client.prepare();
     return await operation(client);
   } finally {
     try {

@@ -15,6 +15,7 @@ import {
   registerDownloadCommand,
   registerDraftCommands,
   registerMessageCommands,
+  registerSendCommand,
 } from "./commands.ts";
 import { dateRange, historyOffset } from "./dates.ts";
 import { PhotoDownloads } from "./downloads.ts";
@@ -22,8 +23,9 @@ import { errorDetails } from "./errors.ts";
 import { exportMessages } from "./export.ts";
 import { peerSummary } from "./format.ts";
 import { json } from "./json.ts";
-import { matchPeer, peerKind } from "./peers.ts";
+import { listChats } from "./peers.ts";
 import { defaultSessionDirectory, login, withClient } from "./session.ts";
+import { registerUnreadCommand } from "./unread.ts";
 
 const cancellation = new AbortController();
 const interrupt = (): void => {
@@ -136,12 +138,19 @@ program
     "all"
   )
   .option("--limit <count>", "Maximum matching chats", "50")
-  .action(async (inputOptions: Record<string, string>) => {
+  .option(
+    "--unread",
+    "Only chats with unread incoming messages; excludes manual unread marks alone"
+  )
+  .option("--all", "Return all matching chats, ignoring --limit")
+  .action(async (inputOptions: Record<string, string | boolean>) => {
     const options = z
       .object({
+        all: z.boolean().default(false),
         kind: z.enum(["all", "person", "group", "channel", "bot", "community"]),
         limit: z.coerce.number().int().min(1).max(1000),
         search: z.string(),
+        unread: z.boolean().default(false),
       })
       .parse(inputOptions);
     await run(async (client) => {
@@ -149,42 +158,28 @@ program
         client,
         z.string().parse(program.opts().sessionDir)
       );
-      const chats = [];
-      let complete = true;
-      for await (const dialog of client.iterDialogs({ archived: "keep" })) {
-        const matches = matchPeer(
-          dialog.peer,
-          options.search,
-          options.kind,
-          aliases.get(dialog.peer.id)
-        );
-        if (matches === null) {
-          continue;
-        }
-        if (chats.length === options.limit) {
-          complete = false;
-          break;
-        }
-        chats.push({
-          ...peerSummary(dialog.peer),
-          kind: peerKind(dialog.peer),
-          matches: matches.length === 0 ? undefined : matches,
-        });
-      }
-      return { chats, complete };
+      return await listChats(
+        client,
+        { ...options, limit: options.all ? Infinity : options.limit },
+        aliases
+      );
     });
   });
 
 const messagesCommand = program
   .command("messages")
-  .description("Retrieve Telegram history");
+  .description(
+    "Retrieve Telegram history; send only with explicit user approval"
+  );
 const commandContext = {
   directory: (): string => z.string().parse(program.opts().sessionDir),
   run,
   signal: cancellation.signal,
 };
 registerMessageCommands(messagesCommand, commandContext);
+registerUnreadCommand(messagesCommand, commandContext);
 registerDownloadCommand(messagesCommand, commandContext);
+registerSendCommand(messagesCommand, commandContext);
 registerAliasCommands(program, commandContext);
 registerDraftCommands(program, commandContext);
 

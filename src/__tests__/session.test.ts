@@ -20,16 +20,17 @@ afterEach(async () => {
   await rm(directory, { force: true, recursive: true });
 });
 
-test("offline initialization loads crypto and releases its lock after failure", async () => {
+test("shared initialization permits numeric peer lookup offline and releases its lock after failure", async () => {
   const child = Bun.spawn(
     [
       "bun",
       "--eval",
       `
     import { withClient } from './src/session.ts';
+    import { deepStrictEqual } from 'node:assert/strict';
     try {
       await withClient(process.argv[1], async (client) => {
-        await client.prepare();
+        deepStrictEqual(await client.resolvePeer(-42), { _: 'inputPeerChat', chatId: 42 });
         throw new Error('fixture failure');
       }, true);
     } catch (error) {

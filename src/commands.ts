@@ -15,6 +15,7 @@ import { downloadAttachment } from "./downloads.ts";
 import { getDraft, saveDraft } from "./drafts.ts";
 import { CliError } from "./errors.ts";
 import { messageContext, readMessages } from "./messages.ts";
+import { sendMessages, splitBubbles } from "./send.ts";
 
 interface CommandsContext {
   run: <T>(operation: (client: TelegramClient) => Promise<T>) => Promise<void>;
@@ -23,6 +24,12 @@ interface CommandsContext {
 }
 
 const messageId = z.coerce.number().int().positive().max(2_147_483_646);
+const messageBody = z
+  .string()
+  .max(4096)
+  .refine((value) => value.trim().length > 0, "Message must contain text");
+const messageText = async (file: string): Promise<string> =>
+  messageBody.parse(await readFile(file, "utf-8"));
 const readInput = z.object({
   before: messageId.optional(),
   chat: z.string().min(1),
@@ -65,7 +72,6 @@ export const registerDownloadCommand = (
         })
         .parse(input);
       await context.run(async (client) => {
-        await client.getMe();
         const chat = await resolveReference(
           client,
           context.directory(),
@@ -97,7 +103,9 @@ export const registerMessageCommands = (
     const command = messages
       .command(name)
       .description(
-        "Read latest matching messages in [since, until), displayed oldest first. No read receipts. Repeat with nextBefore and the returned until for older pages."
+        name === "search"
+          ? "Search the entire chat with Telegram's native text search unless dates are supplied. Returns the latest matching page, oldest first. No read receipts; paginate with nextBefore and returned until."
+          : "Read latest matching messages in [since, until), displayed oldest first. No read receipts. Repeat with nextBefore and the returned until for older pages."
       )
       .requiredOption(
         "--chat <reference>",
@@ -110,7 +118,7 @@ export const registerMessageCommands = (
       .option(
         "--since <date>",
         "today, Nd, all, YYYY-MM-DD, or ISO timestamp",
-        "today"
+        name === "search" ? "all" : "today"
       )
       .option(
         "--until <date>",
@@ -155,6 +163,40 @@ export const registerMessageCommands = (
       });
     });
   }
+  messages
+    .command("get")
+    .description(
+      "Retrieve one exact message by ID, without surrounding history. Add --replies for its immediate parent; never marks read."
+    )
+    .requiredOption(
+      "--chat <reference>",
+      "Marked ID, @username, me, or exact saved alias"
+    )
+    .requiredOption("--id <id>", "Exact message ID within this chat")
+    .option(
+      "--replies",
+      "Also fetch the immediate replied-to message, not the entire thread"
+    )
+    .action(async (input: Record<string, string | boolean>) => {
+      const options = z
+        .object({
+          chat: z.string().min(1),
+          id: messageId,
+          replies: z.boolean().default(false),
+        })
+        .parse(input);
+      await context.run(
+        async (client) =>
+          await messageContext(
+            client,
+            await resolveReference(client, context.directory(), options.chat),
+            options.id,
+            0,
+            0,
+            options.replies
+          )
+      );
+    });
   messages
     .command("context")
     .description(
@@ -301,12 +343,7 @@ export const registerDraftCommands = (
           textFile: z.string().min(1),
         })
         .parse(input);
-      const text = z
-        .string()
-        .min(1)
-        .max(4096)
-        .refine((value) => value.trim().length > 0, "Draft must contain text")
-        .parse(await readFile(options.textFile, "utf-8"));
+      const text = await messageText(options.textFile);
       await context.run(async (client) => {
         const reference = await resolveReference(
           client,
@@ -322,5 +359,65 @@ export const registerDraftCommands = (
           options.replace
         );
       });
+    });
+};
+
+export const registerSendCommand = (
+  messages: Command,
+  context: CommandsContext
+): void => {
+  messages
+    .command("send")
+    .description(
+      "Send plain-text messages as the user; a line containing only --- separates bubbles, sent in order. IRREVERSIBLE: run only after the user explicitly approved these exact texts and recipient; reading, analysis or drafting requests never authorize sending."
+    )
+    .requiredOption(
+      "--chat <reference>",
+      "Marked ID, @username, me, or exact saved alias"
+    )
+    .requiredOption(
+      "--text-file <path>",
+      "UTF-8 plain text file, or - for stdin (quoted heredoc); 1–10 bubbles split on --- lines, all validated before sending"
+    )
+    .requiredOption(
+      "--user-confirmed",
+      "Required acknowledgement that the user explicitly approved sending these texts to this chat"
+    )
+    .option(
+      "--reply-to <id>",
+      "First bubble replies to this message in the same chat; fails without sending if it is missing"
+    )
+    .option("--clear-draft", "Also clear the chat's Telegram draft")
+    .action(async (input: Record<string, string | boolean>) => {
+      const options = z
+        .object({
+          chat: z.string().min(1),
+          clearDraft: z.boolean().default(false),
+          replyTo: messageId.optional(),
+          textFile: z.string().min(1),
+          userConfirmed: z.literal(true),
+        })
+        .parse(input);
+      const texts = z
+        .array(messageBody)
+        .min(1)
+        .max(10)
+        .parse(
+          splitBubbles(
+            options.textFile === "-"
+              ? await Bun.stdin.text()
+              : await readFile(options.textFile, "utf-8")
+          )
+        );
+      await context.run(
+        async (client) =>
+          await sendMessages(
+            client,
+            await resolveReference(client, context.directory(), options.chat),
+            texts,
+            options.replyTo,
+            options.clearDraft
+          )
+      );
     });
 };

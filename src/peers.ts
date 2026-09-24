@@ -1,4 +1,6 @@
-import type { Peer } from "@mtcute/bun";
+import type { Peer, TelegramClient } from "@mtcute/bun";
+
+import { peerSummary } from "./format.ts";
 
 export const peerKind = (peer: Peer): string => {
   if (peer.type === "user") {
@@ -36,4 +38,45 @@ export const matchPeer = (
     candidate.value.toLowerCase().normalize().includes(query)
   );
   return matches.length === 0 ? null : matches;
+};
+
+export const listChats = async (
+  client: Pick<TelegramClient, "iterDialogs">,
+  options: { search: string; kind: string; limit: number; unread: boolean },
+  aliases: ReadonlyMap<number, readonly string[]>
+) => {
+  const chats = [];
+  let complete = true;
+  for await (const dialog of client.iterDialogs({ archived: "keep" })) {
+    if (options.unread && dialog.unreadCount === 0) {
+      continue;
+    }
+    const matches = matchPeer(
+      dialog.peer,
+      options.search,
+      options.kind,
+      aliases.get(dialog.peer.id)
+    );
+    if (matches === null) {
+      continue;
+    }
+    if (chats.length === options.limit) {
+      complete = false;
+      break;
+    }
+    chats.push({
+      ...peerSummary(dialog.peer),
+      kind: peerKind(dialog.peer),
+      manuallyUnread: dialog.isManuallyUnread,
+      matches: matches.length === 0 ? undefined : matches,
+      readInboxMaxId: dialog.lastReadIngoing,
+      unreadCount: dialog.unreadCount,
+    });
+  }
+  return {
+    chats,
+    complete,
+    count: chats.length,
+    unreadCount: chats.reduce((sum, chat) => sum + chat.unreadCount, 0),
+  };
 };

@@ -262,3 +262,39 @@ test("hidden links preserve UTF-16 positions and albums retain 64-bit IDs", () =
     new MarkdownEncoder("UTC", self).message(message(11, 1))
   ).not.toContain("media=");
 });
+
+test("reaction counts are compact and preserve custom, paid and own reactions", () => {
+  const original = message(10, 1);
+  const item = new Message(
+    {
+      ...original.raw,
+      reactions: {
+        _: "messageReactions",
+        results: [
+          {
+            _: "reactionCount",
+            count: 4,
+            reaction: { _: "reactionEmoji", emoticon: "👍" },
+          },
+          {
+            _: "reactionCount",
+            chosenOrder: 0,
+            count: 2,
+            reaction: {
+              _: "reactionCustomEmoji",
+              documentId: Long.fromString("9007199254740993"),
+            },
+          },
+          {
+            _: "reactionCount",
+            count: 1,
+            reaction: { _: "reactionPaid" },
+          },
+        ],
+      },
+    },
+    peers
+  );
+  const text = new MarkdownEncoder("UTC", self).message(item);
+  expect(text).toContain("reactions=👍:4 custom:9007199254740993:2(mine) ⭐:1");
+});

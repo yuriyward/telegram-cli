@@ -3,6 +3,7 @@ import { rejects } from "node:assert/strict";
 
 import { Message, PeersIndex } from "@mtcute/bun";
 import type { TelegramClient, tl } from "@mtcute/bun";
+import Long from "long";
 
 import { dateRange } from "../dates.ts";
 import { messageContext, readMessages, replyContext } from "../messages.ts";
@@ -194,4 +195,72 @@ test("missing context target is explicit and zero-sized windows do no extra requ
     code: "MESSAGE_NOT_FOUND",
   });
   expect(client.getHistory).not.toHaveBeenCalled();
+});
+
+test("exact lookup fetches only the target unless reply context is requested", async () => {
+  const parent = item(8, -86_400, { _: "messageReplyHeader", replyToMsgId: 7 });
+  const target = item(10, 0, { _: "messageReplyHeader", replyToMsgId: 8 });
+  const client = {
+    getHistory: mock<TelegramClient["getHistory"]>(
+      async () => await Promise.resolve(Object.assign([], { total: 0 }))
+    ),
+    getMessages: mock<TelegramClient["getMessages"]>(
+      async (_chat, ids) =>
+        await Promise.resolve(
+          Array.isArray(ids) && ids[0] === 10 ? [target] : [parent]
+        )
+    ),
+  };
+  const plain = await messageContext(client, 2, 10, 0, 0, false);
+  expect(plain.messages.map((message) => message.id)).toEqual([10]);
+  expect(plain.replies).toBeUndefined();
+  expect(client.getMessages.mock.calls).toEqual([[2, [10]]]);
+  client.getMessages.mockClear();
+  const contextual = await messageContext(client, 2, 10, 0, 0, true);
+  expect(contextual.replies?.map((message) => message.id)).toEqual([8]);
+  expect(client.getMessages.mock.calls).toEqual([
+    [2, [10]],
+    [2, [8]],
+  ]);
+  expect(client.getHistory).not.toHaveBeenCalled();
+});
+
+test("read-with-replies includes parents outside the date range without altering selected messages", async () => {
+  const client = reader([
+    item(10, 0, { _: "messageReplyHeader", replyToMsgId: 8 }),
+  ]);
+  client.getMessages.mockImplementation(
+    async () => await Promise.resolve([item(8, -86_400)])
+  );
+  const result = await readMessages(client, { ...options, replies: true });
+  expect(result.messages.map((message) => message.id)).toEqual([10]);
+  expect(result.replies?.map((message) => message.id)).toEqual([8]);
+});
+
+test("structured messages include reaction emoji, counts and account selection", async () => {
+  const reacted = item(10);
+  reacted.raw.reactions = {
+    _: "messageReactions",
+    results: [
+      {
+        _: "reactionCount",
+        chosenOrder: 0,
+        count: 3,
+        reaction: { _: "reactionEmoji", emoticon: "❤️" },
+      },
+      {
+        _: "reactionCount",
+        count: 2,
+        reaction: {
+          _: "reactionCustomEmoji",
+          documentId: Long.fromString("9007199254740993"),
+        },
+      },
+    ],
+  };
+  const result = await readMessages(reader([reacted]), options);
+  expect(result.messages[0]?.reactions).toEqual([
+    { chosen: true, count: 3, emoji: "❤️" },
+    { count: 2, customEmojiId: "9007199254740993" },
+  ]);
 });

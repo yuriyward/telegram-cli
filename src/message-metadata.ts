@@ -1,5 +1,39 @@
 import type { Message } from "@mtcute/bun";
 
+export interface ReactionMetadata {
+  chosen?: true;
+  count: number;
+  customEmojiId?: string;
+  emoji?: string;
+  paid?: true;
+}
+
+export const reactionMetadata = (
+  message: Message
+): ReactionMetadata[] | undefined => {
+  const reactions = message.reactions?.reactions.flatMap<ReactionMetadata>(
+    (reaction) => {
+      const common =
+        reaction.order === null
+          ? { count: reaction.count }
+          : { chosen: true as const, count: reaction.count };
+      const value = reaction.raw.reaction;
+      if (value._ === "reactionEmoji") {
+        return [{ ...common, emoji: value.emoticon }];
+      }
+      if (value._ === "reactionCustomEmoji") {
+        return [{ ...common, customEmojiId: value.documentId.toString() }];
+      }
+      return value._ === "reactionPaid"
+        ? [{ ...common, emoji: "⭐", paid: true }]
+        : [];
+    }
+  );
+  return reactions === undefined || reactions.length === 0
+    ? undefined
+    : reactions;
+};
+
 export const mediaMetadata = (message: Message) => {
   const { media } = message;
   if (media === null) {
@@ -34,7 +68,11 @@ export const mediaMetadata = (message: Message) => {
 export const messageMetadata = (message: Message) => {
   const { raw } = message;
   if (raw._ === "messageService") {
-    return { reply: raw.replyTo, service: raw.action };
+    return {
+      reactions: reactionMetadata(message),
+      reply: raw.replyTo,
+      service: raw.action,
+    };
   }
   const links = raw.entities?.flatMap((entity) =>
     entity._ === "messageEntityTextUrl"
@@ -60,6 +98,7 @@ export const messageMetadata = (message: Message) => {
     forward: raw.fwdFrom,
     links: links !== undefined && links.length > 0 ? links : undefined,
     media: mediaMetadata(message),
+    reactions: reactionMetadata(message),
     reply: raw.replyTo,
   };
 };

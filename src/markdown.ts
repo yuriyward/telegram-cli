@@ -3,6 +3,7 @@ import type { Message, Peer } from "@mtcute/bun";
 import type { AttachmentResult } from "./downloads.ts";
 import type { PeerSummary } from "./format.ts";
 import { json } from "./json.ts";
+import type { ReactionMetadata } from "./message-metadata.ts";
 import { messageMetadata } from "./message-metadata.ts";
 
 const identity = (peer: Peer): string =>
@@ -24,12 +25,26 @@ const attachmentMarkdown = (attachment?: AttachmentResult): string => {
   return "";
 };
 
+const reactionLabel = (reaction: ReactionMetadata): string => {
+  const { customEmojiId, emoji: unicodeEmoji } = reaction;
+  const emoji = unicodeEmoji ?? `custom:${customEmojiId}`;
+  return `${emoji}:${reaction.count}${reaction.chosen === true ? "(mine)" : ""}`;
+};
+
+const reactionAttributes = (
+  reactions: ReactionMetadata[] | undefined
+): string[] =>
+  reactions === undefined
+    ? []
+    : [`reactions=${reactions.map(reactionLabel).join(" ")}`];
+
 const attributes = (
   message: Message,
   attachment?: AttachmentResult
 ): string[] => {
   const { raw } = message;
   const result: string[] = [];
+  result.push(...reactionAttributes(messageMetadata(message).reactions));
   if (raw.replyTo?._ === "messageReplyHeader") {
     const { _: _constructor, replyToMsgId, ...context } = raw.replyTo;
     if (replyToMsgId !== undefined) {

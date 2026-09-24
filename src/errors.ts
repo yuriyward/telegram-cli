@@ -5,6 +5,7 @@ import { z } from "zod";
 import { DownloadFailureError } from "./download-error.ts";
 import { ExportFailureError } from "./export.ts";
 import type { ExportReceipt } from "./export.ts";
+import { SendFailureError } from "./send.ts";
 
 export class CliError extends Error {
   readonly code: string;
@@ -22,6 +23,7 @@ interface ErrorDetails {
   message: string;
   partial: ExportReceipt | undefined;
   downloadPartial: string | undefined;
+  sent: SendFailureError["sent"] | undefined;
   recovery: string;
   schemaVersion: number;
   status: "error";
@@ -78,7 +80,8 @@ const recovery = new Map([
 export const errorDetails = (error: Error): ErrorDetails => {
   const cause =
     (error instanceof ExportFailureError ||
-      error instanceof DownloadFailureError) &&
+      error instanceof DownloadFailureError ||
+      error instanceof SendFailureError) &&
     error.cause instanceof Error
       ? error.cause
       : error;
@@ -102,9 +105,12 @@ export const errorDetails = (error: Error): ErrorDetails => {
     message: cause.message,
     partial: error instanceof ExportFailureError ? error.receipt : undefined,
     recovery:
-      recovery.get(code) ??
-      "Check the arguments and Telegram access. For a flood wait, wait the seconds specified in the error before retrying with a new output filename.",
+      error instanceof SendFailureError
+        ? "Messages in sent were delivered. Check the chat before resending only the rest; a timed-out send may also have arrived."
+        : (recovery.get(code) ??
+          "Check the arguments and Telegram access. For a flood wait, wait the seconds specified in the error before retrying with a new output filename."),
     schemaVersion: 1,
+    sent: error instanceof SendFailureError ? error.sent : undefined,
     status: "error",
   };
 };
