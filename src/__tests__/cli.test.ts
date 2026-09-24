@@ -185,6 +185,8 @@ test.each([
   { command: ["messages", "send"], flag: "--user-confirmed" },
   { command: ["messages", "send"], flag: "explicitly approved" },
   { command: ["messages", "send"], flag: "- for stdin" },
+  { command: ["messages", "react"], flag: "--emoji" },
+  { command: ["messages", "react"], flag: "explicitly approved" },
 ])("agent command help works offline: %j", async ({ command, flag }) => {
   const result = await invoke([...command, "--help"]);
   expect(result.exitCode).toBe(0);
@@ -208,6 +210,57 @@ test.each(
     ["drafts", "save", "--chat", "2"],
     ["messages", "send", "--chat", "2", "--text-file", "unused.txt"],
     ["messages", "send", "--chat", "2", "--user-confirmed"],
+    ["messages", "react", "--chat", "2", "--id", "7", "--emoji", "👍"],
+    ["messages", "react", "--chat", "2", "--id", "7", "--user-confirmed"],
+    [
+      "messages",
+      "react",
+      "--chat",
+      "2",
+      "--id",
+      "7",
+      "--emoji",
+      "👍",
+      "--remove",
+      "--user-confirmed",
+    ],
+    [
+      "messages",
+      "react",
+      "--chat",
+      "2",
+      "--id",
+      "7",
+      "--emoji",
+      "👍 ❤️",
+      "--user-confirmed",
+    ],
+    [
+      "messages",
+      "react",
+      "--chat",
+      "2",
+      "--id",
+      "7",
+      "--user-confirmed",
+      "--emoji",
+      "👍",
+      "❤️",
+      "🔥",
+      "🎉",
+    ],
+    [
+      "messages",
+      "react",
+      "--chat",
+      "2",
+      "--id",
+      "7",
+      "--user-confirmed",
+      "--emoji",
+      "👍",
+      "👍",
+    ],
     [
       "messages",
       "send",
@@ -270,6 +323,25 @@ test("stdin bubbles are parsed before opening the account", async () => {
     [...send, "--user-confirmed"],
     "First line\nsecond line\n---\nDon't $HOME `x`\n"
   );
+  expect(result.exitCode).toBe(1);
+  expect(failure.parse(JSON.parse(result.stderr)).code).toBe("CONFIG_REQUIRED");
+});
+
+test("up to three reactions pass validation before opening the account", async () => {
+  const result = await invoke([
+    "messages",
+    "react",
+    "--chat",
+    "2",
+    "--id",
+    "7",
+    "--emoji",
+    "👍",
+    "❤️",
+    "--emoji",
+    "🔥",
+    "--user-confirmed",
+  ]);
   expect(result.exitCode).toBe(1);
   expect(failure.parse(JSON.parse(result.stderr)).code).toBe("CONFIG_REQUIRED");
 });

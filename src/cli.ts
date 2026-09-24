@@ -15,6 +15,7 @@ import {
   registerDownloadCommand,
   registerDraftCommands,
   registerMessageCommands,
+  registerReactCommand,
   registerSendCommand,
 } from "./commands.ts";
 import { dateRange, historyOffset } from "./dates.ts";
@@ -180,6 +181,7 @@ registerMessageCommands(messagesCommand, commandContext);
 registerUnreadCommand(messagesCommand, commandContext);
 registerDownloadCommand(messagesCommand, commandContext);
 registerSendCommand(messagesCommand, commandContext);
+registerReactCommand(messagesCommand, commandContext);
 registerAliasCommands(program, commandContext);
 registerDraftCommands(program, commandContext);
 

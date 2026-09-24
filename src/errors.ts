@@ -55,6 +55,14 @@ const recovery = new Map([
     "Inspect drafts get before explicitly saving with --replace.",
   ],
   [
+    "REACTIONS_TOO_MANY",
+    "This account can set fewer reactions per message (one without Telegram Premium); retry with fewer emoji.",
+  ],
+  [
+    "REACTION_INVALID",
+    "Use a standard emoji this chat allows; custom emoji and restricted reactions are rejected.",
+  ],
+  [
     "MESSAGE_NOT_FOUND",
     "Check the chat and message ID; deleted or inaccessible messages cannot be retrieved.",
   ],

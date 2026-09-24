@@ -15,6 +15,7 @@ import { downloadAttachment } from "./downloads.ts";
 import { getDraft, saveDraft } from "./drafts.ts";
 import { CliError } from "./errors.ts";
 import { messageContext, readMessages } from "./messages.ts";
+import { setReactions } from "./react.ts";
 import { sendMessages, splitBubbles } from "./send.ts";
 
 interface CommandsContext {
@@ -417,6 +418,63 @@ export const registerSendCommand = (
             texts,
             options.replyTo,
             options.clearDraft
+          )
+      );
+    });
+};
+
+export const registerReactCommand = (
+  messages: Command,
+  context: CommandsContext
+): void => {
+  messages
+    .command("react")
+    .description(
+      "Set or remove the user's reactions on one message; the given set replaces the user's previous reactions there. Visible to others: run only after the user explicitly approved these reactions on this message."
+    )
+    .requiredOption(
+      "--chat <reference>",
+      "Marked ID, @username, me, or exact saved alias"
+    )
+    .requiredOption("--id <id>", "Message ID within this chat")
+    .option(
+      "--emoji <emojis...>",
+      "1–3 distinct standard emoji allowed in this chat, e.g. 👍 ❤️; more than one needs Telegram Premium"
+    )
+    .option("--remove", "Remove all of the user's reactions instead")
+    .requiredOption(
+      "--user-confirmed",
+      "Required acknowledgement that the user explicitly approved these reactions"
+    )
+    .action(async (input: Record<string, string[] | string | boolean>) => {
+      const options = z
+        .object({
+          chat: z.string().min(1),
+          emoji: z
+            .array(z.string().regex(/^\S{1,32}$/u, "Use a single emoji"))
+            .min(1)
+            .max(3)
+            .refine(
+              (emojis) => new Set(emojis).size === emojis.length,
+              "Emoji must be distinct"
+            )
+            .optional(),
+          id: messageId,
+          remove: z.boolean().default(false),
+          userConfirmed: z.literal(true),
+        })
+        .refine(
+          (value) => (value.emoji === undefined) === value.remove,
+          "Pass exactly one of --emoji or --remove"
+        )
+        .parse(input);
+      await context.run(
+        async (client) =>
+          await setReactions(
+            client,
+            await resolveReference(client, context.directory(), options.chat),
+            options.id,
+            options.emoji ?? []
           )
       );
     });
