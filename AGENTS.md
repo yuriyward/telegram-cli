@@ -1,6 +1,6 @@
 # Telegram CLI
 
-This is a standalone Bun application operated by agents on the user's behalf. Run commands from this directory so Bun loads the local credentials. Execute requested reads and exports; do not hand commands back for the user to run. Interactive authentication is the exception.
+This is a standalone Bun application operated by agents on the user's behalf. Product intent and its Never list: `PRODUCT.md`; decisions: `knowledge/` (sending and reacting: ADR-0001). Run commands from this directory so Bun loads the local credentials. Execute requested reads and exports; do not hand commands back for the user to run. Interactive authentication is the exception.
 
 ## Discovery and exports
 
