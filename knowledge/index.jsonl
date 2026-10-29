@@ -1,0 +1,1 @@
+{"aliases":[],"code_paths":["src/**"],"decision_key":"send.confirmation","domain":"system","feature":"","id":"ADR-0001","path":"knowledge/system/decisions/ADR-0001-sending-and-reacting-need-explicit-user-confirmati-4a21f925-e271-4e96-8241-f9fd2ff3ef91.md","status":"accepted","superseded_by":null,"title":"Sending and reacting need explicit user confirmation","type":"decision"}

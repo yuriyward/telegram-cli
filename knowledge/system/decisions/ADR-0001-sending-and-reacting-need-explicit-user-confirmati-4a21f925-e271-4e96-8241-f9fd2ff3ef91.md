@@ -1,5 +1,5 @@
 ---
-id: ADR-NEXT-sending-and-reacting-need-explicit-user-confirmati-4a21f925-e271-4e96-8241-f9fd2ff3ef91
+id: ADR-0001
 type: decision
 status: accepted
 domain: system
@@ -12,7 +12,7 @@ supersedes: []
 superseded_by: null
 ---
 
-# ADR-NEXT-sending-and-reacting-need-explicit-user-confirmati-4a21f925-e271-4e96-8241-f9fd2ff3ef91 — Sending and reacting need explicit user confirmation
+# ADR-0001 — Sending and reacting need explicit user confirmation
 
 ## Question
 
