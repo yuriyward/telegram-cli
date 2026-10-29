@@ -1,8 +1,6 @@
 # telegram-cli
 
-A command-line client for a personal Telegram account, built for AI agents: JSON on stdout, diagnostics on stderr.
-It finds chats, reads, searches and exports history (Markdown or JSON, with photos), downloads attachments, manages
-native drafts, and sends messages or reactions only when the caller passes `--user-confirmed`.
+A command-line client for a personal Telegram account, built for AI agents: JSON on stdout, diagnostics on stderr. It finds chats, reads, searches and exports history (Markdown or JSON, with photos), downloads attachments, manages native drafts, and sends messages or reactions only when the caller passes `--user-confirmed`.
 
 ## Install
 
