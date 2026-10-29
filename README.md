@@ -29,3 +29,7 @@ Agent instructions: `AGENTS.md`. Product intent: `PRODUCT.md`. Decisions: `knowl
 ```bash
 bun run check   # lint, format, typecheck, tests, build
 ```
+
+## License
+
+[AGPL-3.0-or-later](LICENSE). If you distribute a modified version, or run one as a service others use, you must publish its source under the same license.
