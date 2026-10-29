@@ -8,10 +8,11 @@ Find any document in one call — no need to know its type first:
 rg -i '<id>|<alias>|<code path>' knowledge/index.jsonl
 ```
 
-Feature `status` is derived: `active` while an open work order claims it, `shipped` once `## Log` has an entry, `cancelled` only when set by hand. It is never written directly.
+Feature `status` is derived: `active` while an open work order claims it, `shipped` once
+`## Log` has an entry, `cancelled` only when set by hand. It is never written directly.
 
 ## system
 
 | id | type | status | document |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | `ADR-0001` | decision | accepted | [Sending and reacting need explicit user confirmation](system/decisions/ADR-0001-sending-and-reacting-need-explicit-user-confirmati-4a21f925-e271-4e96-8241-f9fd2ff3ef91.md) |
