@@ -30,6 +30,10 @@ Agent instructions: `AGENTS.md`. Product intent: `PRODUCT.md`. Decisions: `knowl
 bun run check   # lint, format, typecheck, tests, build
 ```
 
+## About this repository
+
+This repository is the public part of a private agent harness. It carries the product intent, decisions and code; the tooling that writes, checks and reviews them stays private, so the method can be used here without disclosing private data. Agent configuration such as `CLAUDE.md`, `.claude/`, hooks and CI workflows is left out on purpose; please do not open pull requests adding it.
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE). If you distribute a modified version, or run one as a service others use, you must publish its source under the same license.
